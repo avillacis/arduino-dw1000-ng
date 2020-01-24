@@ -1082,11 +1082,18 @@ namespace DW1000Ng {
 			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXPHD_BIT, true);
 			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, LDEDONE_BIT, true);
 			_writeBytesToRegister(SYS_STATUS, NO_SUB, _sysstatus, LEN_SYS_STATUS);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXDFR_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXFCG_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXPRD_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXSFDD_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXPHD_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, LDEDONE_BIT, false);
 		}
 
 		void _clearReceiveTimestampAvailableStatus() {
 			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, LDEDONE_BIT, true);
 			_writeBytesToRegister(SYS_STATUS, NO_SUB, _sysstatus, LEN_SYS_STATUS);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, LDEDONE_BIT, false);
 		}
 
 		void _clearReceiveTimeoutStatus() {
@@ -1094,6 +1101,9 @@ namespace DW1000Ng {
 			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXPTO_BIT, true);
 			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXSFDTO_BIT, true);
 			_writeBytesToRegister(SYS_STATUS, NO_SUB, _sysstatus, LEN_SYS_STATUS);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXRFTO_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXPTO_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXSFDTO_BIT, false);
 		}
 
 		void _clearReceiveFailedStatus() {
@@ -1103,6 +1113,11 @@ namespace DW1000Ng {
 			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, AFFREJ_BIT, true);
 			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, LDEERR_BIT, true);
 			_writeBytesToRegister(SYS_STATUS, NO_SUB, _sysstatus, LEN_SYS_STATUS);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXPHE_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXFCE_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXRFSL_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, AFFREJ_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, LDEERR_BIT, false);
 		}
 
 		void _clearTransmitStatus() {
@@ -1112,6 +1127,11 @@ namespace DW1000Ng {
 			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, TXPHS_BIT, true);
 			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, TXFRS_BIT, true);
 			_writeBytesToRegister(SYS_STATUS, NO_SUB, _sysstatus, LEN_SYS_STATUS);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, AAT_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, TXFRB_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, TXPRS_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, TXPHS_BIT, false);
+			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, TXFRS_BIT, false);
 		}
 
 		void _resetReceiver() {
@@ -1293,38 +1313,52 @@ namespace DW1000Ng {
 	}
 
 	void interruptServiceRoutine() {
+		unsigned int activity;
+
 		// read current status and handle via callbacks
-		_readSystemEventStatusRegister();
-		if(_isClockProblem() /* TODO and others */ && _handleError != 0) {
-			(*_handleError)();
-		}
-		if(_isTransmitDone()) {
-			_clearTransmitStatus();
-			if(_handleSent != nullptr)
-				(*_handleSent)();
-		}
-		if(_isReceiveTimestampAvailable()) {
-			_clearReceiveTimestampAvailableStatus();
-			if(_handleReceiveTimestampAvailable != nullptr)
-				(*_handleReceiveTimestampAvailable)();
-		}
-		if(_isReceiveFailed()) {
-			_clearReceiveFailedStatus();
-			forceTRxOff();
-			_resetReceiver();
-			if(_handleReceiveFailed != nullptr)
-				(*_handleReceiveFailed)();
-		} else if(_isReceiveTimeout()) {
-			_clearReceiveTimeoutStatus();
-			forceTRxOff();
-			_resetReceiver();
-			if(_handleReceiveTimeout != nullptr)
-				(*_handleReceiveTimeout)();
-		} else if(_isReceiveDone()) {
-			_clearReceiveStatus();
-			if(_handleReceived != nullptr)
-				(*_handleReceived)();
-		}
+		do {
+		    activity = 0;
+
+		    _readSystemEventStatusRegister();
+		    if(_isClockProblem()) {
+	            activity++;
+		        if (/* TODO and others */_handleError != 0) {
+				    (*_handleError)();
+			    }
+		    }
+		    if(_isTransmitDone()) {
+		        activity++;
+			    _clearTransmitStatus();
+			    if(_handleSent != nullptr)
+				    (*_handleSent)();
+		    }
+		    if(_isReceiveTimestampAvailable()) {
+		        activity++;
+			    _clearReceiveTimestampAvailableStatus();
+			    if(_handleReceiveTimestampAvailable != nullptr)
+				    (*_handleReceiveTimestampAvailable)();
+		    }
+		    if(_isReceiveFailed()) {
+		        activity++;
+			    _clearReceiveFailedStatus();
+			    forceTRxOff();
+			    _resetReceiver();
+			    if(_handleReceiveFailed != nullptr)
+				    (*_handleReceiveFailed)();
+		    } else if(_isReceiveTimeout()) {
+		        activity++;
+			    _clearReceiveTimeoutStatus();
+			    forceTRxOff();
+			    _resetReceiver();
+			    if(_handleReceiveTimeout != nullptr)
+				    (*_handleReceiveTimeout)();
+		    } else if(_isReceiveDone()) {
+		        activity++;
+			    _clearReceiveStatus();
+			    if(_handleReceived != nullptr)
+				    (*_handleReceived)();
+		    }
+		} while (activity > 0);
 	}
 
 	boolean isTransmitDone(){
