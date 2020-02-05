@@ -1321,39 +1321,39 @@ namespace DW1000Ng {
 
 		    _readSystemEventStatusRegister();
 		    if(_isClockProblem()) {
-	            activity++;
-		        if (/* TODO and others */_handleError != 0) {
+			    activity++;
+			    if (/* TODO and others */_handleError != 0) {
 				    (*_handleError)();
 			    }
 		    }
 		    if(_isTransmitDone()) {
-		        activity++;
+			    activity++;
 			    _clearTransmitStatus();
 			    if(_handleSent != nullptr)
 				    (*_handleSent)();
 		    }
 		    if(_isReceiveTimestampAvailable()) {
-		        activity++;
+			    activity++;
 			    _clearReceiveTimestampAvailableStatus();
 			    if(_handleReceiveTimestampAvailable != nullptr)
 				    (*_handleReceiveTimestampAvailable)();
 		    }
 		    if(_isReceiveFailed()) {
-		        activity++;
+			    activity++;
 			    _clearReceiveFailedStatus();
 			    forceTRxOff();
 			    _resetReceiver();
 			    if(_handleReceiveFailed != nullptr)
 				    (*_handleReceiveFailed)();
 		    } else if(_isReceiveTimeout()) {
-		        activity++;
+			    activity++;
 			    _clearReceiveTimeoutStatus();
 			    forceTRxOff();
 			    _resetReceiver();
 			    if(_handleReceiveTimeout != nullptr)
 				    (*_handleReceiveTimeout)();
 		    } else if(_isReceiveDone()) {
-		        activity++;
+			    activity++;
 			    _clearReceiveStatus();
 			    if(_handleReceived != nullptr)
 				    (*_handleReceived)();
