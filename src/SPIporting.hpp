@@ -28,9 +28,15 @@
 #pragma once
 
 #include <Arduino.h>
+#include <SPI.h>
 #include "DW1000NgConstants.hpp"
 
 namespace SPIporting{
+
+    /**
+	Switch to a nonstandard SPIClass instance. Call before SPIinit().
+	*/
+    void useSPIObj(SPIClass *spiobj);
 
     /** 
 	Initializes the SPI bus.
