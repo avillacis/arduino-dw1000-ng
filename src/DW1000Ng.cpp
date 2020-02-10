@@ -1156,6 +1156,11 @@ namespace DW1000Ng {
 			_writeBytesSystemStatusClearMask();
 		}
 
+		void _clearClockProblemStatusBits() {
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, CLKPLL_LL_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, RFPLL_LL_BIT, true);
+		}
+
 		void _resetReceiver() {
 			/* Set to 0 only bit 28 */
 			_writeToRegister(PMSC, PMSC_SOFTRESET_SUB, 0xE0, LEN_PMSC_SOFTRESET);
@@ -1335,40 +1340,61 @@ namespace DW1000Ng {
 	}
 
 	void interruptServiceRoutine() {
+		bool flagError = false;
+		bool flagTxDone = false;
+		bool flagRxTS = false;
+		bool flagRxFail = false;
+		bool flagRxTO = false;
+		bool flagRxDone = false;
+
 		// read current status and handle via callbacks
 		_readSystemEventStatusRegister();
+		_initStatusClearMask();
 		if(_isClockProblem()) {
-			if (/* TODO and others */_handleError != 0) {
-				(*_handleError)();
-			}
+			_clearClockProblemStatusBits();
+			flagError = true;
 		}
 		if(_isTransmitDone()) {
-			_clearTransmitStatus();
-			if(_handleSent != nullptr)
-				(*_handleSent)();
+			_clearTransmitStatusBits();
+			flagTxDone = true;
 		}
 		if(_isReceiveTimestampAvailable()) {
-			_clearReceiveTimestampAvailableStatus();
-			if(_handleReceiveTimestampAvailable != nullptr)
-				(*_handleReceiveTimestampAvailable)();
+			_clearReceiveTimestampAvailableStatusBits();
+			flagRxTS = true;
 		}
 		if(_isReceiveFailed()) {
-			_clearReceiveFailedStatus();
+			_clearReceiveFailedStatusBits();
 			forceTRxOff();
 			_resetReceiver();
-			if(_handleReceiveFailed != nullptr)
-				(*_handleReceiveFailed)();
-		} else if(_isReceiveTimeout()) {
-			_clearReceiveTimeoutStatus();
-			forceTRxOff();
-			_resetReceiver();
-			if(_handleReceiveTimeout != nullptr)
-				(*_handleReceiveTimeout)();
-		} else if(_isReceiveDone()) {
-			_clearReceiveStatus();
-			if(_handleReceived != nullptr)
-				(*_handleReceived)();
+			flagRxFail = true;
 		}
+		if(_isReceiveTimeout()) {
+			_clearReceiveTimeoutStatusBits();
+			forceTRxOff();
+			_resetReceiver();
+			flagRxTO = true;
+		}
+		if(_isReceiveDone()) {
+			_clearReceiveStatusBits();
+			flagRxDone = true;
+		}
+
+		if (flagError && /* TODO and others */_handleError != nullptr) {
+			(*_handleError)();
+		}
+		if (flagTxDone && _handleSent != nullptr)
+			(*_handleSent)();
+		if (flagRxTS && _handleReceiveTimestampAvailable != nullptr)
+			(*_handleReceiveTimestampAvailable)();
+		if (flagRxFail && _handleReceiveFailed != nullptr)
+			(*_handleReceiveFailed)();
+		if (flagRxTO && _handleReceiveTimeout != nullptr)
+			(*_handleReceiveTimeout)();
+		if (flagRxDone && _handleReceived != nullptr)
+			(*_handleReceived)();
+
+		// flush all cleared bits at once
+		_writeBytesSystemStatusClearMask();
 	}
 
 	boolean isTransmitDone(){
