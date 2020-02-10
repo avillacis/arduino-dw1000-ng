@@ -80,6 +80,9 @@ namespace DW1000Ng {
 		byte       _chanctrl[LEN_CHAN_CTRL];
 		byte       _networkAndAddress[LEN_PANADR];
 
+		/* system status clearing mask */
+		byte       _sysstatus_clearmask[LEN_SYS_STATUS];
+
 		/* Temperature and Voltage monitoring */
 		byte _vmeas3v3 = 0;
 		byte _tmeas23C = 0;
@@ -1073,45 +1076,84 @@ namespace DW1000Ng {
 			_writeBytesToRegister(FS_CTRL, FS_XTALT_SUB, fsxtalt, LEN_FS_XTALT);
 		}
 
-		void _clearReceiveStatus() {
+		void _initStatusClearMask() {
+			// Initialize clearing bitmask (all zero)
+			memset(_sysstatus_clearmask, 0, LEN_SYS_STATUS);
+		}
+
+		void _writeBytesSystemStatusClearMask()
+		{
+			// write clearing mask to status register, then clear same bits in status shadow
+			_writeBytesToRegister(SYS_STATUS, NO_SUB, _sysstatus_clearmask, LEN_SYS_STATUS);
+			for (auto i = 0; i < LEN_SYS_STATUS; i++) {
+				_sysstatus[i] &= ~_sysstatus_clearmask[i];
+			}
+		}
+
+		void _clearReceiveStatusBits() {
 			// clear latched RX bits (i.e. write 1 to clear)
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXDFR_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXFCG_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXPRD_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXSFDD_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXPHD_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, LDEDONE_BIT, true);
-			_writeBytesToRegister(SYS_STATUS, NO_SUB, _sysstatus, LEN_SYS_STATUS);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, RXDFR_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, RXFCG_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, RXPRD_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, RXSFDD_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, RXPHD_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, LDEDONE_BIT, true);
+		}
+
+		void _clearReceiveStatus() {
+			_initStatusClearMask();
+			_clearReceiveStatusBits();
+			_writeBytesSystemStatusClearMask();
+		}
+
+		void _clearReceiveTimestampAvailableStatusBits() {
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, LDEDONE_BIT, true);
 		}
 
 		void _clearReceiveTimestampAvailableStatus() {
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, LDEDONE_BIT, true);
-			_writeBytesToRegister(SYS_STATUS, NO_SUB, _sysstatus, LEN_SYS_STATUS);
+			_initStatusClearMask();
+			_clearReceiveTimestampAvailableStatusBits();
+			_writeBytesSystemStatusClearMask();
+		}
+
+		void _clearReceiveTimeoutStatusBits() {
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, RXRFTO_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, RXPTO_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, RXSFDTO_BIT, true);
 		}
 
 		void _clearReceiveTimeoutStatus() {
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXRFTO_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXPTO_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXSFDTO_BIT, true);
-			_writeBytesToRegister(SYS_STATUS, NO_SUB, _sysstatus, LEN_SYS_STATUS);
+			_initStatusClearMask();
+			_clearReceiveTimeoutStatusBits();
+			_writeBytesSystemStatusClearMask();
+		}
+
+		void _clearReceiveFailedStatusBits() {
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, RXPHE_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, RXFCE_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, RXRFSL_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, AFFREJ_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, LDEERR_BIT, true);
 		}
 
 		void _clearReceiveFailedStatus() {
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXPHE_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXFCE_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, RXRFSL_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, AFFREJ_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, LDEERR_BIT, true);
-			_writeBytesToRegister(SYS_STATUS, NO_SUB, _sysstatus, LEN_SYS_STATUS);
+			_initStatusClearMask();
+			_clearReceiveFailedStatusBits();
+			_writeBytesSystemStatusClearMask();
+		}
+
+		void _clearTransmitStatusBits() {
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, AAT_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, TXFRB_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, TXPRS_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, TXPHS_BIT, true);
+			DW1000NgUtils::setBit(_sysstatus_clearmask, LEN_SYS_STATUS, TXFRS_BIT, true);
 		}
 
 		void _clearTransmitStatus() {
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, AAT_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, TXFRB_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, TXPRS_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, TXPHS_BIT, true);
-			DW1000NgUtils::setBit(_sysstatus, LEN_SYS_STATUS, TXFRS_BIT, true);
-			_writeBytesToRegister(SYS_STATUS, NO_SUB, _sysstatus, LEN_SYS_STATUS);
+			_initStatusClearMask();
+			_clearTransmitStatusBits();
+			_writeBytesSystemStatusClearMask();
 		}
 
 		void _resetReceiver() {
