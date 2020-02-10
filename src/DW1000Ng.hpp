@@ -389,6 +389,7 @@ namespace DW1000Ng {
 	Handles dw1000 events triggered by interrupt
 	By default this is attached to the interrupt pin callback
 	*/
+	void handlerDispatcher(void *);
 	void interruptServiceRoutine();
 	
 	boolean isTransmitDone();

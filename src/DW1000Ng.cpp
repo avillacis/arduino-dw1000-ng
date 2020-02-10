@@ -1248,6 +1248,18 @@ namespace DW1000Ng {
 			/* Clear the register */
 			_writeToRegister(AON, AON_CTRL_SUB, 0x00, LEN_AON_CTRL);
 		}
+
+		portMUX_TYPE DRAM_ATTR _handlerDispatcherMux = portMUX_INITIALIZER_UNLOCKED;
+		TaskHandle_t _handlerDispatcherTask;
+
+		void IRAM_ATTR _interruptServiceRoutine() {
+			BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+			portENTER_CRITICAL_ISR(&_handlerDispatcherMux);
+			vTaskNotifyGiveFromISR(_handlerDispatcherTask, &xHigherPriorityTaskWoken);
+			if (xHigherPriorityTaskWoken) portYIELD_FROM_ISR();
+			portEXIT_CRITICAL_ISR(&_handlerDispatcherMux);
+		}
+
 	}
 
 	/* ####################### PUBLIC ###################### */
@@ -1268,8 +1280,10 @@ namespace DW1000Ng {
 		// pin and basic member setup
 		// attach interrupt
 		// TODO throw error if pin is not a interrupt pin
-		if(_irq != 0xff)
-			attachInterrupt(digitalPinToInterrupt(_irq), interruptServiceRoutine, RISING);
+		if(_irq != 0xff) {
+			xTaskCreate(handlerDispatcher, "DW1000-dispatcher", 8192, NULL, 1, &_handlerDispatcherTask);
+			attachInterrupt(digitalPinToInterrupt(_irq), _interruptServiceRoutine, RISING);
+		}
 		SPIporting::SPIselect(_ss, _irq);
 		// reset chip (either soft or hard)
 		reset();
@@ -1337,6 +1351,14 @@ namespace DW1000Ng {
 	
 	void attachReceiveTimestampAvailableHandler(void (* handleReceiveTimestampAvailable)(void)) {
 		_handleReceiveTimestampAvailable = handleReceiveTimestampAvailable;
+	}
+
+	void handlerDispatcher(void *) {
+		while (true) {
+			ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+
+			interruptServiceRoutine();
+		}
 	}
 
 	void interruptServiceRoutine() {
