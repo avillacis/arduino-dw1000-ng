@@ -1251,8 +1251,10 @@ namespace DW1000Ng {
 
 		portMUX_TYPE DRAM_ATTR _handlerDispatcherMux = portMUX_INITIALIZER_UNLOCKED;
 		TaskHandle_t _handlerDispatcherTask;
+		unsigned long long DRAM_ATTR numInterrupts = 0;
 
 		void IRAM_ATTR _interruptServiceRoutine() {
+			numInterrupts++;
 			BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 			portENTER_CRITICAL_ISR(&_handlerDispatcherMux);
 			vTaskNotifyGiveFromISR(_handlerDispatcherTask, &xHigherPriorityTaskWoken);
@@ -1261,6 +1263,8 @@ namespace DW1000Ng {
 		}
 
 	}
+
+	unsigned long long getNumInterrupts(void) { return numInterrupts; }
 
 	/* ####################### PUBLIC ###################### */
 
@@ -1362,6 +1366,7 @@ namespace DW1000Ng {
 	}
 
 	void interruptServiceRoutine() {
+		bool activity;
 		bool flagError = false;
 		bool flagTxDone = false;
 		bool flagRxTS = false;
@@ -1370,53 +1375,58 @@ namespace DW1000Ng {
 		bool flagRxDone = false;
 
 		// read current status and handle via callbacks
-		_readSystemEventStatusRegister();
-		_initStatusClearMask();
-		if(_isClockProblem()) {
-			_clearClockProblemStatusBits();
-			flagError = true;
-		}
-		if(_isTransmitDone()) {
-			_clearTransmitStatusBits();
-			flagTxDone = true;
-		}
-		if(_isReceiveTimestampAvailable()) {
-			_clearReceiveTimestampAvailableStatusBits();
-			flagRxTS = true;
-		}
-		if(_isReceiveFailed()) {
-			_clearReceiveFailedStatusBits();
-			forceTRxOff();
-			_resetReceiver();
-			flagRxFail = true;
-		}
-		if(_isReceiveTimeout()) {
-			_clearReceiveTimeoutStatusBits();
-			forceTRxOff();
-			_resetReceiver();
-			flagRxTO = true;
-		}
-		if(_isReceiveDone()) {
-			_clearReceiveStatusBits();
-			flagRxDone = true;
-		}
+		do {
+			flagError = flagTxDone = flagRxTS = flagRxFail = flagRxTO = flagRxDone = false;
+			_readSystemEventStatusRegister();
+			_initStatusClearMask();
+			if(_isClockProblem()) {
+				_clearClockProblemStatusBits();
+				flagError = true;
+			}
+			if(_isTransmitDone()) {
+				_clearTransmitStatusBits();
+				flagTxDone = true;
+			}
+			if(_isReceiveTimestampAvailable()) {
+				_clearReceiveTimestampAvailableStatusBits();
+				flagRxTS = true;
+			}
+			if(_isReceiveFailed()) {
+				_clearReceiveFailedStatusBits();
+				forceTRxOff();
+				_resetReceiver();
+				flagRxFail = true;
+			}
+			if(_isReceiveTimeout()) {
+				_clearReceiveTimeoutStatusBits();
+				forceTRxOff();
+				_resetReceiver();
+				flagRxTO = true;
+			}
+			if(_isReceiveDone()) {
+				_clearReceiveStatusBits();
+				flagRxDone = true;
+			}
 
-		if (flagError && /* TODO and others */_handleError != nullptr) {
-			(*_handleError)();
-		}
-		if (flagTxDone && _handleSent != nullptr)
-			(*_handleSent)();
-		if (flagRxTS && _handleReceiveTimestampAvailable != nullptr)
-			(*_handleReceiveTimestampAvailable)();
-		if (flagRxFail && _handleReceiveFailed != nullptr)
-			(*_handleReceiveFailed)();
-		if (flagRxTO && _handleReceiveTimeout != nullptr)
-			(*_handleReceiveTimeout)();
-		if (flagRxDone && _handleReceived != nullptr)
-			(*_handleReceived)();
+			if (flagError && /* TODO and others */_handleError != nullptr) {
+				(*_handleError)();
+			}
+			if (flagTxDone && _handleSent != nullptr)
+				(*_handleSent)();
+			if (flagRxTS && _handleReceiveTimestampAvailable != nullptr)
+				(*_handleReceiveTimestampAvailable)();
+			if (flagRxFail && _handleReceiveFailed != nullptr)
+				(*_handleReceiveFailed)();
+			if (flagRxTO && _handleReceiveTimeout != nullptr)
+				(*_handleReceiveTimeout)();
+			if (flagRxDone && _handleReceived != nullptr)
+				(*_handleReceived)();
 
-		// flush all cleared bits at once
-		_writeBytesSystemStatusClearMask();
+			// flush all cleared bits at once
+			_writeBytesSystemStatusClearMask();
+
+			activity = flagError || flagTxDone || flagRxTS || flagRxFail || flagRxTO || flagRxDone;
+		} while (activity);
 	}
 
 	boolean isTransmitDone(){
@@ -2038,6 +2048,11 @@ namespace DW1000Ng {
 			data += (char)dataBytes[i];
 		}
 		free(dataBytes);
+	}
+
+	uint32_t readSystemEventStatusRegister() {
+		_readSystemEventStatusRegister();
+		return DW1000NgUtils::bytesAsValue(_sysstatus, LEN_SYS_STATUS);
 	}
 
 	uint64_t getTransmitTimestamp() {

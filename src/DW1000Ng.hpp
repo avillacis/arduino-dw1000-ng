@@ -391,6 +391,8 @@ namespace DW1000Ng {
 	*/
 	void handlerDispatcher(void *);
 	void interruptServiceRoutine();
+	unsigned long long getNumInterrupts(void);
+	uint32_t readSystemEventStatusRegister();
 	
 	boolean isTransmitDone();
 
