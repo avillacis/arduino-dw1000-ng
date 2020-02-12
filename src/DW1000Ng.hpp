@@ -389,9 +389,11 @@ namespace DW1000Ng {
 	Handles dw1000 events triggered by interrupt
 	By default this is attached to the interrupt pin callback
 	*/
-	void handlerDispatcher(void *);
 	void interruptServiceRoutine();
+#ifdef ESP32
+	void handlerDispatcher(void *);
 	unsigned long long getNumInterrupts(void);
+#endif
 	uint32_t readSystemEventStatusRegister();
 	
 	boolean isTransmitDone();

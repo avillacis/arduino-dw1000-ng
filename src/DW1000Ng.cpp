@@ -1248,7 +1248,7 @@ namespace DW1000Ng {
 			/* Clear the register */
 			_writeToRegister(AON, AON_CTRL_SUB, 0x00, LEN_AON_CTRL);
 		}
-
+#ifdef ESP32
 		portMUX_TYPE DRAM_ATTR _handlerDispatcherMux = portMUX_INITIALIZER_UNLOCKED;
 		TaskHandle_t _handlerDispatcherTask;
 		unsigned long long DRAM_ATTR numInterrupts = 0;
@@ -1261,7 +1261,7 @@ namespace DW1000Ng {
 			if (xHigherPriorityTaskWoken) portYIELD_FROM_ISR();
 			portEXIT_CRITICAL_ISR(&_handlerDispatcherMux);
 		}
-
+#endif
 	}
 
 	unsigned long long getNumInterrupts(void) { return numInterrupts; }
@@ -1285,8 +1285,12 @@ namespace DW1000Ng {
 		// attach interrupt
 		// TODO throw error if pin is not a interrupt pin
 		if(_irq != 0xff) {
+#ifdef ESP32
 			xTaskCreate(handlerDispatcher, "DW1000-dispatcher", 8192, NULL, 1, &_handlerDispatcherTask);
 			attachInterrupt(digitalPinToInterrupt(_irq), _interruptServiceRoutine, RISING);
+#else
+			attachInterrupt(digitalPinToInterrupt(_irq), interruptServiceRoutine, RISING);
+#endif
 		}
 		SPIporting::SPIselect(_ss, _irq);
 		// reset chip (either soft or hard)
@@ -1356,7 +1360,7 @@ namespace DW1000Ng {
 	void attachReceiveTimestampAvailableHandler(void (* handleReceiveTimestampAvailable)(void)) {
 		_handleReceiveTimestampAvailable = handleReceiveTimestampAvailable;
 	}
-
+#ifdef ESP32
 	void handlerDispatcher(void *) {
 		while (true) {
 			ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
@@ -1364,7 +1368,7 @@ namespace DW1000Ng {
 			interruptServiceRoutine();
 		}
 	}
-
+#endif
 	void interruptServiceRoutine() {
 		bool activity;
 		bool flagError = false;
