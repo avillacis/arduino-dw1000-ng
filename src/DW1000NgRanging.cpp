@@ -68,20 +68,26 @@ namespace DW1000NgRanging {
         size_t index = DW1000Ng::getPulseFrequency() == PulseFrequency::FREQ_16MHZ ? 1 : 2;
         if(currentChannel == Channel::CHANNEL_4 || currentChannel == Channel::CHANNEL_7)
             index+=2;
-        
+
+        double bias;
+
         if (rxPower < BIAS_TABLE[0][0]) {
-            result = range += BIAS_TABLE[0][index]*0.001;
+            bias = BIAS_TABLE[0][index] + (rxPower - BIAS_TABLE[0][0]) * ((BIAS_TABLE[1][index] - BIAS_TABLE[0][index]) / (BIAS_TABLE[1][0] - BIAS_TABLE[0][0]));
         } else if (rxPower >= BIAS_TABLE[17][0]) {
-            result = range += BIAS_TABLE[17][index]*0.001;
+            bias = BIAS_TABLE[17][index] + (rxPower - BIAS_TABLE[17][0]) * ((BIAS_TABLE[17][index] - BIAS_TABLE[16][index]) / (BIAS_TABLE[17][0] - BIAS_TABLE[16][0]));
         } else {
             for(auto i=0; i < 17; i++) {
                 if (rxPower >= BIAS_TABLE[i][0] && rxPower < BIAS_TABLE[i+1][0]){
-                    result = range += BIAS_TABLE[i][index]*0.001;
+                    bias = BIAS_TABLE[i][index] +
+                        (rxPower - BIAS_TABLE[i][0])
+                        * ((BIAS_TABLE[i+1][index] - BIAS_TABLE[i][index])
+                        / (BIAS_TABLE[i+1][0] - BIAS_TABLE[i][0]));
                     break;
                 }
             }
         }
 
+        result = range + bias * 0.001;
         return result;
     }
 
