@@ -1250,7 +1250,7 @@ namespace DW1000Ng {
 		}
 #ifdef ESP32
 		portMUX_TYPE DRAM_ATTR _handlerDispatcherMux = portMUX_INITIALIZER_UNLOCKED;
-		TaskHandle_t _handlerDispatcherTask;
+		TaskHandle_t _handlerDispatcherTask = NULL;
 		unsigned long long DRAM_ATTR numInterrupts = 0;
 
 		void IRAM_ATTR _interruptServiceRoutine() {
@@ -1286,7 +1286,9 @@ namespace DW1000Ng {
 		// TODO throw error if pin is not a interrupt pin
 		if(_irq != 0xff) {
 #ifdef ESP32
-			xTaskCreate(handlerDispatcher, "DW1000-dispatcher", 8192, NULL, 1, &_handlerDispatcherTask);
+			if (_handlerDispatcherTask == NULL) {
+				xTaskCreate(handlerDispatcher, "DW1000-dispatcher", 8192, NULL, 1, &_handlerDispatcherTask);
+			}
 			attachInterrupt(digitalPinToInterrupt(_irq), _interruptServiceRoutine, RISING);
 #else
 			attachInterrupt(digitalPinToInterrupt(_irq), interruptServiceRoutine, RISING);
@@ -1334,6 +1336,19 @@ namespace DW1000Ng {
 
 	void initializeNoInterrupt(uint8_t ss, uint8_t rst) {
 		initialize(ss, 0xff, rst);
+	}
+
+	void shutDown(void) {
+		if (_irq != 0xff) {
+			detachInterrupt(digitalPinToInterrupt(_irq));
+		}
+		forceTRxOff();
+#ifdef ESP32
+		if (_handlerDispatcherTask != NULL) {
+			vTaskDelete(_handlerDispatcherTask);
+			_handlerDispatcherTask = NULL;
+		}
+#endif
 	}
 
 	/* callback handler management. */
