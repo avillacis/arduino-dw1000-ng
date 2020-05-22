@@ -1876,6 +1876,51 @@ namespace DW1000Ng {
 		return _pulseFrequency;
 	}
 
+    int32_t getCarrierIntegratorRawValue(void)
+    {
+        byte        carrierIntBytes[LEN_DRX_CAR_INT];
+        memset(carrierIntBytes, 0, LEN_DRX_CAR_INT);
+        _readBytes(DRX_TUNE, DRX_CAR_INT_SUB, carrierIntBytes, LEN_DRX_CAR_INT);
+        int32_t rv = DW1000NgUtils::bytesAsValue(carrierIntBytes, LEN_DRX_CAR_INT);
+
+        // Sign-extend value
+        if (rv & 0x00100000UL)
+            rv |= 0xFFF00000UL;
+        else
+            rv &= 0x001FFFFFUL;
+        return rv;
+    }
+
+    float getCarrierIntegratorRatio(void)
+    {
+        float       offset;
+        int32_t    cir = getCarrierIntegratorRawValue();
+
+        switch (_channel) {
+        case Channel::CHANNEL_1:
+            // 3494.4 MHz
+            offset = (_dataRate == DataRate::RATE_110KBPS) ? -0.13304e-3 : -1.0644e-3;
+            break;
+        case Channel::CHANNEL_2:
+        case Channel::CHANNEL_4:
+            // 3993.6 MHz
+            offset = (_dataRate == DataRate::RATE_110KBPS) ? -0.1164e-3 : -0.9313e-3;
+            break;
+        case Channel::CHANNEL_3:
+            // 4492.8 MHz
+            offset = (_dataRate == DataRate::RATE_110KBPS) ? -0.1035e-3 : -0.8278e-3;
+            break;
+        case Channel::CHANNEL_5:
+        case Channel::CHANNEL_7:
+            // 6489.6 MHz
+            offset = (_dataRate == DataRate::RATE_110KBPS) ? -0.0716e-3 : -0.5731e-3;
+            break;
+        }
+        offset *= cir;
+        offset *= 1e-6;
+        return offset;
+    }
+
 	void setPreambleDetectionTimeout(uint16_t pacSize) {
 		byte drx_pretoc[LEN_DRX_PRETOC];
 		DW1000NgUtils::writeValueToBytes(drx_pretoc, pacSize, LEN_DRX_PRETOC);

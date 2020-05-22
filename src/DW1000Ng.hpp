@@ -458,7 +458,11 @@ namespace DW1000Ng {
 	returns the current PRF
 	*/
 	PulseFrequency getPulseFrequency();
-	
+
+    int32_t getCarrierIntegratorRawValue(void);
+
+    float getCarrierIntegratorRatio(void);
+
 	/**
 	Sets the timeout for Raceive Frame.
 
