@@ -1917,7 +1917,7 @@ namespace DW1000Ng {
     {
         byte        carrierIntBytes[LEN_DRX_CAR_INT];
         memset(carrierIntBytes, 0, LEN_DRX_CAR_INT);
-        _readBytes(DRX_TUNE, DRX_CAR_INT_SUB, carrierIntBytes, LEN_DRX_CAR_INT);
+        _readBytesFromRegister(DRX_TUNE, DRX_CAR_INT_SUB, carrierIntBytes, LEN_DRX_CAR_INT);
         int32_t rv = DW1000NgUtils::bytesAsValue(carrierIntBytes, LEN_DRX_CAR_INT);
 
         // Sign-extend value
