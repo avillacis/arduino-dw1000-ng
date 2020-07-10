@@ -1324,7 +1324,7 @@ namespace DW1000Ng {
 		if(_irq != 0xff) {
 #ifdef ESP32
 			if (_handlerDispatcherTask == NULL) {
-				xTaskCreate(handlerDispatcher, "DW1000-dispatcher", 8192, NULL, 1, &_handlerDispatcherTask);
+				xTaskCreate(handlerDispatcher, "DW1000-dispatcher", 8192, NULL, tskIDLE_PRIORITY+2, &_handlerDispatcherTask);
 			}
 			attachInterrupt(digitalPinToInterrupt(_irq), _interruptServiceRoutine, RISING);
 #else
